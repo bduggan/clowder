@@ -7,11 +7,20 @@ use Data::Dumper;
 
 my $json = Mojo::JSON->new();
 my $redis = Mojo::Redis->new();
+$redis->on(error => sub {
+        my ($red,$err) = @_;
+        app->log->warn("redis error : $err");
+    });
 app->helper(red => sub {
         my $c = shift;
         my %a = @_;
-        return Mojo::Redis->new() if $a{new};
-        $redis;
+        return $redis unless $a{new};
+        my $red = Mojo::Redis->new();
+        $red->on(error => sub {
+            my ($red,$err) = @_;
+            app->log->warn("redis error : $err");
+        });
+        return $red;
     });
 app->log->level('debug');
 app->secret(42);
@@ -29,13 +38,15 @@ post '/clean' => sub {
     $c->rendered;
 };
 
+my @subscriptions;
+
 put '/job' => sub {
     my $c = shift;
     my $job = $c->req->json;
     my $deps = $job->{deps};
     my %deps;
     unless ($deps && @$deps) {
-        # No dependencies?  You are good to go.
+        $c->app->log->info('no dependencies, this job is ready');
         $c->red->lpush('ready_jobs', $json->encode($job)) or die "could not sadd";
         $c->res->code(202);
         return $c->render(json => { state => 'Ready' } );
@@ -44,18 +55,24 @@ put '/job' => sub {
     %deps = map { $_ => 1 } @$deps;
     $job->{deps} = \%deps;
 
+    $c->app->log->info('dependencies.  Subscribing to files for this job');
     $c->red->sadd('waiting_jobs', $json->encode($job)) or die "could not sadd";
+    $c->app->log->info('added to waiting_jobs');
+    $c->red->smembers('waiting_jobs' => sub {
+            my ($rd,$rlt) =  @_;
+            $c->app->log->info("waiting : @$rlt");
+        });
     for my $key (keys %deps) {
-        nb "subscribing to files : $key";
-        $c->red->subscribe('files')->on(data => sub {
+        nb "subscribing to files : (key=$key)";
+        push @subscriptions, $c->red(new => 1)->subscribe('files', sub {
                 my ($sub, $data) = @_;
                 my ($action,$channel,$message) = @$data;
                 nb "# subscribe to data called ($action, $channel, $message)";
                 return unless $action eq 'message'; # ignore other subscribes.
-                my $file = $json->decode($data);
+                my $file = $json->decode($message) or nb "could not decode $message";
                 unless (defined($file->{key})) {
                     nb "# error: no key for file\n";
-                    nb "subscription got : ".Dumper($data);
+                    nb "subscription got : ".Dumper($file);
                     return;
                 }
                 unless ($file->{key} eq $key) {
@@ -109,9 +126,18 @@ post '/file' => sub {
     my ($key,$md5) = @$spec{qw[key md5]};
     nb "# got file $key, publishing a message";
     $c->red->publish(files => $c->req->body) or die "could not publish";
-    nb "finished publishing";
+    nb "finished publishing : ".$c->req->body;
     $c->render(json => { status => 'ok' });
 };
+
+Mojo::IOLoop->recurring(
+    2 => sub {
+        Mojo::Redis->new()->smembers('waiting_jobs' => sub {
+            my ($rd,$rlt) =  @_;
+            app->log->info("still waiting : @$rlt");
+        });
+    }
+);
 
 app->start; 
 
@@ -121,4 +147,7 @@ not found : <%= $self->req->url %>
 
 @@ not_found.html.ep
 not found : <%= $self->req->url %>
+
+@@ exception.html.ep
+%== $exception
 

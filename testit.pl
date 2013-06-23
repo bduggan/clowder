@@ -29,9 +29,12 @@ unless ($pid = fork) {
 $processes{$pid} = 'minion';
 info "started minion ($pid)";
 
-# Submit a job.
+# Submit a job with no dependencies.
 my $got = `./submit_job.pl --url $server_url --app seq --params cli="1 10"`;
-#say $got;
+say "job with no dependencies : $got";
+
+# submit a job that depends on key 99
+my $got = `./submit_job.pl --url $server_url --app cat --keys 99`;
 
 sleep 30;
 

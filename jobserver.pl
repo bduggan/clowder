@@ -7,7 +7,12 @@ use Data::Dumper;
 
 my $json = Mojo::JSON->new();
 my $redis = Mojo::Redis->new();
-app->helper(red => sub { $redis; });
+app->helper(red => sub {
+        my $c = shift;
+        my %a = @_;
+        return Mojo::Redis->new() if $a{new};
+        $redis;
+    });
 app->log->level('debug');
 app->secret(42);
 
@@ -21,15 +26,26 @@ post '/clean' => sub {
     $c->red->del('ready_jobs');
     $c->red->del('files');
     $c->render(json => 'ok');
+    $c->rendered;
 };
 
 put '/job' => sub {
     my $c = shift;
     my $job = $c->req->json;
     my $deps = $job->{deps};
+    my %deps;
+    unless ($deps && @$deps) {
+        # No dependencies?  You are good to go.
+        $c->red->lpush('ready_jobs', $json->encode($job)) or die "could not sadd";
+        $c->res->code(202);
+        return $c->render(json => { state => 'Ready' } );
+    }
+
+    %deps = map { $_ => 1 } @$deps;
+    $job->{deps} = \%deps;
 
     $c->red->sadd('waiting_jobs', $json->encode($job)) or die "could not sadd";
-    for my $key (keys %$deps) {
+    for my $key (keys %deps) {
         nb "subscribing to files : $key";
         $c->red->subscribe('files')->on(data => sub {
                 my ($sub, $data) = @_;
@@ -52,25 +68,26 @@ put '/job' => sub {
                 if (keys %{$job->{deps}} == 0) {
                     $c->red->lpush('ready_jobs', $json->encode($job));
                 } else {
-                    # waiting is the hardest part.
                     $c->red->sadd('waiting_jobs', $json->encode($job));
                 }
             } );
     }
-    $c->render(code => 202, json => { status => 'Accepted' } );
+    $c->res->code(202);
+    $c->render(json => { state => 'Waiting' } );
 
 } => 'putjob';
 
 get '/job' => sub {
     my $c = shift;
     $c->render_later;
-    $c->red->brpop('ready_jobs' => 10 => sub {
+    $c->red(new => 1)->brpop('ready_jobs' => 10 => sub {
             my $red = shift;
             my $next = shift;
             unless ($next && @$next) {
                 $c->app->log->info("no job found after 10 seconds of waiting");
                 return $c->render_not_found;
             }
+            $c->app->log->info("Job found, sending it out.");
             return $c->render(code => 200, json => {job => $next} );
         } );
 } => 'getjob';
@@ -100,5 +117,8 @@ app->start;
 
 __DATA__
 @@ not_found.development.html.ep
+not found : <%= $self->req->url %>
+
+@@ not_found.html.ep
 not found : <%= $self->req->url %>
 

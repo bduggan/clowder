@@ -34,6 +34,7 @@ sub get_next_job {
             my $res;
             unless ($res = $tx->success) {
                 my ($err,$code) = $tx->error;
+                $code //= '<undef>';
                 _log "client got $code : $err";
                 return get_next_job();
             }
@@ -43,12 +44,14 @@ sub get_next_job {
                 _log "hey no json, I got :\n".$tx->res->to_string;
             }
             _log "got a job : ".Dumper($job);
-            sleep 1;
             get_next_job();
         } );
 }
 
 get_next_job();
 
+Mojo::IOLoop->recurring(1 => sub {
+        say time." waiting for a job...";
+    });
 Mojo::IOLoop->start;
 

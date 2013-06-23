@@ -18,7 +18,7 @@ unless ($pid = fork) {
 $processes{$pid} = 'morbo';
 info "started morbo ($pid)";
 
-sleep 4;
+sleep 1;
 unless ($pid = fork) {
     exec "./minion.pl http://localhost:8080";
     die "notreached";
@@ -26,6 +26,8 @@ unless ($pid = fork) {
 $processes{$pid} = 'minion';
 
 info "started minion ($pid)";
+
+
 
 sleep 30;
 

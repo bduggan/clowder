@@ -8,26 +8,30 @@ sub info($) {
     say "@_";
 }
 
-# start jobserver and minion
 my %processes;
 my $pid;
+my $server_url = 'http://localhost:8080';
+
+# Start server.
 unless ($pid = fork) {
-    exec "morbo ./jobserver.pl --listen http://localhost:8080";
+    exec "morbo ./jobserver.pl --listen $server_url";
     die "notreached";
 }
 $processes{$pid} = 'morbo';
 info "started morbo ($pid)";
 
+# Start minion.
 sleep 1;
 unless ($pid = fork) {
-    exec "./minion.pl http://localhost:8080";
+    exec "./minion.pl $server_url";
     die "notreached";
 }
 $processes{$pid} = 'minion';
-
 info "started minion ($pid)";
 
-
+# Submit a job.
+my $got = `./submit_job.pl --url $server_url --app seq --params cli="1 10"`;
+#say $got;
 
 sleep 30;
 

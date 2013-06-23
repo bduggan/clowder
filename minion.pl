@@ -4,14 +4,17 @@ use warnings;
 use strict;
 use feature qw/:all/;
 use Mojo::UserAgent;
+use Mojo::Log;
 use Data::Dumper;
 
 $| = 1;
 
 $SIG{'USR2'} = sub { Mojo::IOLoop->stop; exit; };
 
+my $log = Mojo::Log->new(path => 'log/minion.log', level => 'debug');
+
 sub _log($) {
-    say "# @_";
+    $log->info("@_");
 }
 
 my $base = $ARGV[0] or die "usage $0 <url>";
@@ -51,7 +54,7 @@ sub get_next_job {
 get_next_job();
 
 Mojo::IOLoop->recurring(1 => sub {
-        say time." waiting for a job...";
+        _log(" minion $$ waiting for a job...");
     });
 Mojo::IOLoop->start;
 

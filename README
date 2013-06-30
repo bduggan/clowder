@@ -1,4 +1,4 @@
-garson
+garcon
 
 This is a prototype for a distributed event-driven job
 server which uses HTTP as a transport and redis as a backend.

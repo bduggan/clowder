@@ -1,7 +1,21 @@
-- ingest_file.pl
-- jobserver.pl
-- minion.pl
-- submit_job.pl
-- testit.pl
-- red/start_red
+This is a prototype for a jobserver which uses redis to
+as a backend and uses HTTP and event-driven mechanisms
+to trigger state changes and processing of jobs.
+
+Contents :
+
+- testit.pl : test everything
+
+- jobserver.pl : job server
+- minion.pl : job processor
+- submit_job.pl : client for submitting job requests
+- ingest_file.pl : client for announcing file ingests
+- subscriber.pl : backend process for event-driven state changes
+- red/start_red : sample redis start script
+
+Quick start :
+
+./red/start_red
+./testit.pl
+
 

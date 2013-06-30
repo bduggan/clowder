@@ -34,6 +34,11 @@ unless ($pid = fork) {
 $processes{$pid} = 'minion';
 ok $pid, "started minion";
 
+# Start subscriber
+#unless ($pid = fork) {
+# TODO
+#}
+
 # Submit a job with no dependencies.
 my $got = `./submit_job.pl --url $jobserver --app seq --params cli="1 10"`;
 my $job = $json->decode($got);
@@ -57,6 +62,8 @@ $check = eval { $json->decode($got);};
 die "check_job said : $got" if $@;
 is $check->{id}, $job->{id}, "got id from check_job";
 is $check->{state}, 'waiting', "state is waiting";
+
+# TODO : ingest_file, then check that state is ready.
 
 sleep 5;
 

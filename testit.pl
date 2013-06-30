@@ -47,7 +47,16 @@ is $check->{id}, $job->{id}, "got id from check_job";
 is $check->{state}, 'ready', "state is ready";
 
 # submit a job that depends on key 99
-#$got = `./submit_job.pl --url $jobserver --app cat --keys 99`;
+$got = `./submit_job.pl --url $jobserver --app cat --keys 99`;
+$job = $json->decode($got);
+ok $job->{id}, "new job id : $job->{id}";
+is $job->{state}, 'waiting', "new job is waiting";
+
+$got = `./check_job.pl --url $jobserver --id $job->{id}`;
+$check = eval { $json->decode($got);};
+die "check_job said : $got" if $@;
+is $check->{id}, $job->{id}, "got id from check_job";
+is $check->{state}, 'waiting', "state is waiting";
 
 sleep 5;
 

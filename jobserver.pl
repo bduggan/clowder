@@ -72,7 +72,6 @@ put '/job' => sub {
 
     my @commands = (
         [ set => "job:$id:spec" => $json->encode($job) ],
-        [ set => "job:$id:state" => "ready" ],
     );
 
     my $state;
@@ -86,6 +85,7 @@ put '/job' => sub {
         push @commands, [ lpush => "jobs:ready" => $id ];
         $state = 'ready';
     }
+    push @commands, [ set => "job:$id:state" => $state ];
 
     $c->red->execute(
         @commands,

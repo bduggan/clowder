@@ -41,6 +41,8 @@ sub nb($) {
     app->log->debug(@_);
 }
 
+get '/' => { text => 'welcome to jobserver' };
+
 post '/clean' => sub {
     my $c = shift;
     $c->red->del('waiting_jobs');

@@ -3,6 +3,11 @@
 use strict;
 use warnings;
 use feature qw/:all/;
+use JSON::XS;
+use Data::Dumper;
+use Test::More;
+
+my $json = JSON::XS->new();
 
 sub info($) {
     say "@_";
@@ -12,13 +17,16 @@ my %processes;
 my $pid;
 my $server_url = 'http://localhost:8080';
 
+system('pkill -f morbo') if $ENV{KILL_RUNAWAY_MORBO};
+
 # Start server.
 unless ($pid = fork) {
+    open STDOUT, "| egrep -v available";
     exec "morbo ./jobserver.pl --listen $server_url";
     die "notreached";
 }
 $processes{$pid} = 'morbo';
-info "started morbo ($pid)";
+ok $pid, "started morbo";
 
 # Start minion.
 sleep 1;
@@ -27,19 +35,23 @@ unless ($pid = fork) {
     die "notreached";
 }
 $processes{$pid} = 'minion';
-info "started minion ($pid)";
+ok $pid, "started minion";
 
 # Submit a job with no dependencies.
 my $got = `./submit_job.pl --url $server_url --app seq --params cli="1 10"`;
-say "job with no dependencies : $got";
+my $job = $json->decode($got);
+ok $job->{id}, "Job with no deps";
+is $job->{state}, 'Ready', "job with no deps is ready";
 
 # submit a job that depends on key 99
 #$got = `./submit_job.pl --url $server_url --app cat --keys 99`;
 
 sleep 5;
 
+done_testing();
+
 END {
-    info "cleaning up";
+    diag "cleaning up";
     for my $pid (keys %processes) {
         if ($processes{$pid} =~ /hypnotoad/) {
             `hypnotoad -s ./jobserver.pl`;

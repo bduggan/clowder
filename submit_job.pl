@@ -12,7 +12,7 @@ use feature qw/:all/;
 my $app;
 my %job_params;
 my @keys;
-my $url;
+my $url = $ENV{JOBSERVER};
 
 GetOptions(
     "app=s" => \$app,
@@ -28,10 +28,11 @@ my $ua = Mojo::UserAgent->new;
 $url = Mojo::URL->new($url);
 my $put_url = $url->clone->path('/job');
 my $tx = $ua->put($put_url => {} => json => { app => $app, params => \%job_params, deps => \@keys } );
-if ($tx->res->code==202) {
+my $res = $tx->success;
+if ($res && $res->code==202) {
     say $tx->res->body;
 } else {
-    warn "error; expected code 202";
+    say "error";
     say $tx->res->to_string;
 }
 

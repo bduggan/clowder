@@ -45,8 +45,8 @@ get '/' => { text => 'welcome to jobserver' };
 
 post '/clean' => sub {
     my $c = shift;
-    $c->red->del('waiting_jobs');
-    $c->red->del('ready_jobs');
+    $c->red->del('jobs:waiting');
+    $c->red->del('jobs:ready');
     $c->red->del('files');
     $c->render(json => 'ok');
     $c->rendered;
@@ -54,65 +54,69 @@ post '/clean' => sub {
 
 my @subscriptions;
 
+#
+# PUT a job.  This sets :
+#       job:$id:spec to the json spec for the file.  This
+#            includes params (hash), and dependencies (array of keys)
+#       job:$id:state to ready or waiting
+#       file:$key:jobs to the set of jobs waiting for this file
+#
+# See subcriber.pl for how the file:* keys are used.
+#
 put '/job' => sub {
     my $c = shift;
     my $job = $c->req->json;
     my $deps = $job->{deps};
-    my %deps;
-    $job->{id} = $c->new_id;
-    unless ($deps && @$deps) {
-        $c->app->log->info('no dependencies, this job is ready');
-        $c->red->lpush('ready_jobs', $json->encode($job)) or die "could not sadd";
-        $c->res->code(202);
-        return $c->render(json => { state => 'Ready', id => $job->{id} } );
+    my $id = $c->new_id;
+    $job->{id} = $id;
+
+    my @commands = (
+        [ set => "job:$id:spec" => $json->encode($job) ],
+        [ set => "job:$id:state" => "ready" ],
+    );
+
+    my $state;
+    if ($deps && @$deps) {
+        push @commands, [ sadd => 'jobs:waiting' => $id ];
+        for my $key (@$deps) {
+            push @commands, [ sadd => "file:$key:jobs" => $id ];
+        }
+        $state = 'waiting';
+    } else {
+        push @commands, [ lpush => "jobs:ready" => $id ];
+        $state = 'ready';
     }
 
-    %deps = map { $_ => 1 } @$deps;
-    $job->{deps} = \%deps;
-
-    $c->app->log->info('dependencies.  Subscribing to files for this job');
-    $c->red->sadd('waiting_jobs', $json->encode($job)) or die "could not sadd";
-    $c->app->log->info('added to waiting_jobs');
-    $c->red->smembers('waiting_jobs' => sub {
-            my ($rd,$rlt) =  @_;
-            $c->app->log->info("waiting : @$rlt");
-        });
-    for my $key (keys %deps) {
-        nb "subscribing to files : (key=$key)";
-        push @subscriptions, $c->red(new => 1)->subscribe('files', sub {
-                my ($sub, $data) = @_;
-                my ($action,$channel,$message) = @$data;
-                nb "# subscribe to data called ($action, $channel, $message)";
-                return unless $action eq 'message'; # ignore other subscribes.
-                my $file = $json->decode($message) or nb "could not decode $message";
-                unless (defined($file->{key})) {
-                    nb "# error: no key for file\n";
-                    nb "subscription got : ".Dumper($file);
-                    return;
-                }
-                unless ($file->{key} eq $key) {
-                    nb "# we are waiting for $key, so we ignore $file->{key}";
-                    return;
-                }
-                nb "# Matched incoming key with desired key $key, this job is not waiting.";
-                $c->red->srem('waiting_jobs', $json->encode($job));
-                delete $job->{deps}->{$key}; 
-                if (keys %{$job->{deps}} == 0) {
-                    $c->red->lpush('ready_jobs', $json->encode($job));
-                } else {
-                    $c->red->sadd('waiting_jobs', $json->encode($job));
-                }
-            } );
-    }
-    $c->res->code(202);
-    $c->render(json => { state => 'Waiting' } );
-
+    $c->red->execute(
+        @commands,
+        sub {
+            $c->res->code(202);
+            $c->render(json => { state => $state, id => $id } );
+        }
+    );
+    $c->render_later;
 } => 'putjob';
+
+get '/job/:id' => sub {
+    my $c = shift;
+    my $id = $c->stash('id');
+    $c->red->execute(
+        [ get => "job:$id:spec" ],
+        [ get => "job:$id:state" ],
+        sub {
+            my $r = shift;
+            my ($spec,$state) = @_;
+            return $c->render_not_found unless $spec;
+            $c->render(json => { %{ $json->decode($spec) }, state => $state } );
+        }
+    );
+    $c->render_later;
+};
 
 get '/job' => sub {
     my $c = shift;
     $c->render_later;
-    $c->red(new => 1)->brpop('ready_jobs' => 10 => sub {
+    $c->red(new => 1)->brpop('jobs:ready' => 10 => sub {
             my $red = shift;
             my $next = shift;
             unless ($next && @$next) {
@@ -126,7 +130,7 @@ get '/job' => sub {
 
 get '/jobs/waiting' => sub {
     my $c = shift;
-    $redis->execute(scard => 'waiting_jobs' => sub {
+    $redis->execute(scard => 'jobs:waiting' => sub {
             my ($redis, $count) = @_;
             $c->render(json => { count => $count } );
         }
@@ -147,7 +151,7 @@ post '/file' => sub {
 
 Mojo::IOLoop->recurring(
     2 => sub {
-        Mojo::Redis->new()->smembers('waiting_jobs' => sub {
+        Mojo::Redis->new()->smembers('jobs:waiting' => sub {
             my ($rd,$rlt) =  @_;
             app->log->info("still waiting : @$rlt");
         });

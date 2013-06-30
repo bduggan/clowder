@@ -29,7 +29,7 @@ $url = Mojo::URL->new($url);
 my $put_url = $url->clone->path('/job');
 my $tx = $ua->put($put_url => {} => json => { app => $app, params => \%job_params, deps => \@keys } );
 if ($tx->res->code==202) {
-    say join ' ', $tx->res->code,$tx->res->message;
+    say $tx->res->body;
 } else {
     warn "error; expected code 202";
     say $tx->res->to_string;

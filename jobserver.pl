@@ -7,20 +7,32 @@ use Data::Dumper;
 
 my $json = Mojo::JSON->new();
 my $redis = Mojo::Redis->new();
-$redis->on(error => sub {
+
+my $error_cb = sub {
         my ($red,$err) = @_;
         app->log->warn("redis error : $err");
-    });
+    };
+
+$redis->on(error => $error_cb);
 app->helper(red => sub {
         my $c = shift;
         my %a = @_;
         return $redis unless $a{new};
         my $red = Mojo::Redis->new();
-        $red->on(error => sub {
-            my ($red,$err) = @_;
-            app->log->warn("redis error : $err");
-        });
+        $red->on(error => $error_cb );
         return $red;
+    });
+app->helper(new_id => sub {
+        my $c = shift;
+        my $i;
+        $c->red->incr('nextid' => sub { $i = $_[1];} );
+        my $wait = 0;
+        Mojo::IOLoop->one_tick until (defined($i) || $wait++ > 1000);
+        unless (defined($i)) {
+            $c->app->log->error("Could not increment nextid");
+            die "error incrementing nextid";
+        }
+        return $i;
     });
 app->log->level('debug');
 app->secret(42);
@@ -45,11 +57,12 @@ put '/job' => sub {
     my $job = $c->req->json;
     my $deps = $job->{deps};
     my %deps;
+    $job->{id} = $c->new_id;
     unless ($deps && @$deps) {
         $c->app->log->info('no dependencies, this job is ready');
         $c->red->lpush('ready_jobs', $json->encode($job)) or die "could not sadd";
         $c->res->code(202);
-        return $c->render(json => { state => 'Ready' } );
+        return $c->render(json => { state => 'Ready', id => $job->{id} } );
     }
 
     %deps = map { $_ => 1 } @$deps;

@@ -53,7 +53,7 @@ sub get_next_job {
 
 get_next_job();
 
-Mojo::IOLoop->recurring(1 => sub {
+Mojo::IOLoop->recurring(5 => sub {
         _log(" minion $$ waiting for a job...");
     });
 Mojo::IOLoop->start;

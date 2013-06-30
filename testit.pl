@@ -11,28 +11,26 @@ my $jobserver = 'http://localhost:8080';
 
 my $json = JSON::XS->new();
 
-my %processes;
-my $pid;
-
 system('pkill -f morbo') if $ENV{KILL_RUNAWAY_MORBO};
 
-# Start server.
-unless ($pid = fork) {
-    open STDOUT, "| egrep -v available";
-    exec "morbo ./jobserver.pl --listen $jobserver";
-    die "notreached";
+my %processes;
+sub _spawn($) {
+    my ($cmd) = @_;
+    my $pid;
+    unless ($pid = fork) {
+        open STDOUT, "| egrep -v available";
+        exec $cmd;
+        die "notreached";
+    }
+    $processes{$pid} = $cmd;
+    ok $pid, "started $cmd";
+    sleep 1;
 }
-$processes{$pid} = 'morbo';
-ok $pid, "started morbo";
 
-# Start minion.
-sleep 1;
-unless ($pid = fork) {
-    exec "./minion.pl $jobserver";
-    die "notreached";
-}
-$processes{$pid} = 'minion';
-ok $pid, "started minion";
+my $pid;
+
+_spawn "morbo ./jobserver.pl --listen $jobserver";
+_spawn "./minion.pl $jobserver";
 
 # Start subscriber
 #unless ($pid = fork) {
@@ -64,6 +62,7 @@ is $check->{id}, $job->{id}, "got id from check_job";
 is $check->{state}, 'waiting', "state is waiting";
 
 # TODO : ingest_file, then check that state is ready.
+$got = `./check_job.pl --url $jobserver --id $job->{id}`;
 
 sleep 5;
 

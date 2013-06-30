@@ -58,6 +58,7 @@ my @subscriptions;
 # PUT a job.  This sets :
 #       job:$id:spec to the json spec for the file.  This
 #            includes params (hash), and dependencies (array of keys)
+#       job:$id:deps to the set of dependencies for this file.
 #       job:$id:state to ready or waiting
 #       file:$key:jobs to the set of jobs waiting for this file
 #
@@ -79,6 +80,7 @@ put '/job' => sub {
         push @commands, [ sadd => 'jobs:waiting' => $id ];
         for my $key (@$deps) {
             push @commands, [ sadd => "file:$key:jobs" => $id ];
+            push @commands, [ sadd => "job:$id:deps"   => $key ];
         }
         $state = 'waiting';
     } else {

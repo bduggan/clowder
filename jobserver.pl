@@ -157,10 +157,16 @@ get '/job' => sub {
                 return $c->render_exception("brpop returned @$next");
             }
             my $id = $next->[1];  # next is [ 'jobs:ready' => $id ]
-            $red->execute( [ set => "job:$id:state" => "taken" ]
+            $red->execute(
+                [ set => "job:$id:state" => "taken" ],
+                [ get => "job:$id:spec" ]
                 => sub {
+                    my $r = shift;
+                    my ($set,$spec) = @_;
                     $c->app->log->info("Job found, sending it out.");
-                    $c->render(code => 200, json => {job => $next} );
+                    $c->res->body($spec);
+                    $c->res->code(200);
+                    $c->rendered;
                 } );
         } );
 } => 'getjob';

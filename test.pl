@@ -63,7 +63,7 @@ my $status = _sys qq[mojo get --method=POST $jobserver/clean];
 like $status->{status}, qr/removed/, 'cleaned up';
 
 # Submit a job with no dependencies.
-my $job = _sys(qq[./submit_job.pl --app seq --params cli="1 10"]);
+my $job = _sys(qq[./submit_job.pl --app ./app.pl --params deps=none]);
 ok $job->{id}, "Job with no deps";
 is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
 
@@ -75,7 +75,7 @@ my $count = 10;
 # submit 10 jobs that depends on key 99
 my @jobs;
 for (1..$count) {
-    $job = _sys(qq[./submit_job.pl --app cat --keys 99]);
+    $job = _sys(qq[./submit_job.pl --app ./app.pl --params sleep=8 --keys 99 --params deps=99 num=$_]);
     ok $job->{id}, "new job id : $job->{id}";
     is $job->{state}, 'waiting', "new job is waiting";
     $check = _sys(qq[./check_job.pl --id $job->{id}]);
@@ -98,6 +98,8 @@ for (1..2) {
 
 $counts = _sys(qq[mojo get $jobserver/jobs/waiting]);
 is $counts->{count}, 0, "No jobs waiting";
+
+sleep 10;
 
 done_testing();
 

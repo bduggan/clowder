@@ -1,5 +1,26 @@
 #!/usr/bin/env perl
 
+=head1 NAME
+
+jobserver.pl -- Clowder job server.
+
+=head1 SCHEMA
+
+clowder uses these redis keys :
+
+    name              type        description
+    ----------------- ----------- ---------------
+    global:nextid     integer     sequence (for making jobids)
+    job:$id:spec      JSON        complete job specification (i.e. app, params)
+    job:$id:state     string      state : ready, waiting, taken
+    job:$id:deps      set         set of keys on which this job depends
+    file:$key:jobs    set         set of jobs for which this file key is waiting
+    jobs:waiting      set         set of job ids that are waiting for files
+    jobs:ready        list        list of jobs ready to be taken by minions
+    files:ingest      channel     announcements of ingested file keys and md5s
+
+=cut
+
 use Mojolicious::Lite;
 use Mojo::JSON;
 use Mojo::Redis;
@@ -25,12 +46,12 @@ app->helper(red => sub {
 app->helper(new_id => sub {
         my $c = shift;
         my $i;
-        $c->red->incr('nextid' => sub { $i = $_[1];} );
+        $c->red->incr('global:nextid' => sub { $i = $_[1];} );
         my $wait = 0;
         Mojo::IOLoop->one_tick until (defined($i) || $wait++ > 1000);
         unless (defined($i)) {
-            $c->app->log->error("Could not increment nextid");
-            die "error incrementing nextid";
+            $c->app->log->error("Could not increment global:nextid");
+            die "error incrementing global:nextid";
         }
         return $i;
     });

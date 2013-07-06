@@ -9,6 +9,7 @@ use Path::Class qw/file/;
 use Test::More;
 
 chdir file($0)->dir;
+-d 'log' or mkdir 'log' or die $!;
 
 my $jobserver = 'http://localhost:8080';
 

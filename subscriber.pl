@@ -1,11 +1,12 @@
 #!/usr/bin/env perl
 
-use warnings;
-use strict;
-use feature qw/:all/;
 use Mojo::Redis;
 use Mojo::Log;
 use Data::Dumper;
+use JSON::XS;
+use warnings;
+use strict;
+use feature qw/:all/;
 
 $| = 1;
 
@@ -16,29 +17,71 @@ sub _log($) {
     $log->info("@_");
 }
 
-my $redis = Mojo::Redis->new;
+my %connections;
+sub _red {
+    my %a = @_;
+    return Mojo::Redis->new if $a{new};
+    my $which = $a{which} || 'default';
+    $connections{$which} ||= Mojo::Redis->new;
+    return $connections{$which};
+}
 
 #
-# watch or a message in files:ingested; this will just
-# be a key for a file. When a key is received, look for
-# jobs which are waiting for this key.  For each job, if
+# Watch for a message in the files:ingest channel.  Messages
+# take the form { key => foo, md5 => bar }.
+#
+# Look for jobs which are waiting for this key.  For each job, if
 # there are no more dependencies, change the status to 'ready'.
 #
+my $json = JSON::XS->new;
 sub watch_files {
     my ($redis, $data) = @_;
     my ($action,$queue,$msg) = @$data;
     _log "files: action $action";
     return unless $action eq 'message';
     _log "saw $msg in files";
-    my $key = $msg;
-    $redis->get( "file:$key:jobs" => sub {
+    my $spec = $json->decode($msg);
+    my $file_key = $spec->{key};
+    _log "looking for file:$file_key:jobs";
+    _red(which => 'getter')->execute(
+        [ smembers => "file:$file_key:jobs" ] => sub {
             my $r = shift;
             my $jobs = shift;
-            _log "Received $key, checking jobs : ".Dumper($jobs);
-        });
+            unless (@$jobs) {
+                _log "nobody waiting for $file_key";
+                return;
+            }
+            _log "Received $file_key, checking jobs @$jobs";
+            $r->execute(
+                 ( map {(
+                        [ srem => "job:$_:deps" => $file_key ], 
+                        [ scard => "job:$_:deps" ], 
+                 )} @$jobs ),
+                 sub {
+                     my $red = shift;
+                     my @left = @_;
+                     my $i = 0;
+                     while (my $rem_ok = shift @left) {
+                         my $card = shift @left;
+                         my $job = $jobs->[$i];
+                         _log "job ".$job." deps left : ".$card;
+                         next if $card;
+                         _log "job $job has no more deps.  It is ready.";
+                         $red->execute(
+                            [ set => "job:$job:state" => 'ready' ],
+                            [ lpush => "jobs:ready" => $job ] , sub {
+                                _log "made job $job ready";
+                            } );
+                     } continue {
+                         $i++;
+                     }
+
+                 }
+            );
+    });
 }
 
-$redis->subscribe(files => \&watch_files );
+_red(which => 'default')->subscribe('files:ingest' => \&watch_files );
 
 #    for my $key (keys %deps) {
 #        nb "subscribing to files : (key=$key)";

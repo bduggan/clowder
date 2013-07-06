@@ -11,7 +11,7 @@ use feature qw/:all/;
 
 my $key;
 my $md5;
-my $url;
+my $url = $ENV{JOBSERVER};
 
 GetOptions(
     "key=s" => \$key,
@@ -29,8 +29,8 @@ $url = Mojo::URL->new($url);
 my $post_url = $url->clone->path('/file');
 my $tx = $ua->post($post_url => json => { key => $key, md5 => $md5 } );
 if (my $res = $tx->success) {
-    say join ' ', $res->code,$res->message;
+    say $res->body;
 } else {
-    say $tx->res->to_string;
+    say $tx->error;
 }
 

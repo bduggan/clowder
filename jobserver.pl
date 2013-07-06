@@ -58,8 +58,6 @@ post '/clean' => sub {
   $c->render_later;
 };
 
-my @subscriptions;
-
 #
 # PUT a job.  This sets :
 #       job:$id:spec to the json spec for the file.  This
@@ -162,7 +160,7 @@ post '/file' => sub {
     my $spec = $c->req->json;
     my ($key,$md5) = @$spec{qw[key md5]};
     nb "# got file $key, publishing a message";
-    $c->red->publish(files => $c->req->body) or die "could not publish";
+    $c->red->publish('files:ingest' => $c->req->body) or die "could not publish";
     nb "finished publishing : ".$c->req->body;
     $c->render(json => { status => 'ok' });
 };

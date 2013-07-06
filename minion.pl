@@ -43,8 +43,9 @@ sub get_next_job {
             }
             my $job = $tx->res->json;
             unless (defined($job)) {
-                _log "hey no json, I tried ($base)  :\n".$tx->req->to_string;
-                _log "hey no json, I got :\n".$tx->res->to_string;
+                _log "error getting json from $base : ".
+                     " request :\n".$tx->req->to_string."\n".
+                     " response : ".$tx->res->to_string;
             }
             _log "got a job : ".Dumper($job);
             get_next_job();

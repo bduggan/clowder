@@ -45,11 +45,17 @@ get '/' => { text => 'welcome to jobserver' };
 
 post '/clean' => sub {
     my $c = shift;
-    $c->red->del('jobs:waiting');
-    $c->red->del('jobs:ready');
-    $c->red->del('files');
-    $c->render(json => 'ok');
-    $c->rendered;
+    $c->red->execute(
+        ['keys' => '*'], sub {
+            my $red = shift;
+            my $vals = shift;
+            $red->execute(
+                 ( map [ 'del' => $_ ], grep defined, @$vals ), sub {
+                    $c->render(json => { status => "removed ".@$vals." keys "});
+                 }
+            );
+        } );
+  $c->render_later;
 };
 
 my @subscriptions;
@@ -118,15 +124,21 @@ get '/job/:id' => sub {
 get '/job' => sub {
     my $c = shift;
     $c->render_later;
-    $c->red(new => 1)->brpop('jobs:ready' => 10 => sub {
+    $c->red(new => 1)->brpop('jobs:ready' => 60 => sub {
             my $red = shift;
             my $next = shift;
-            unless ($next && @$next) {
-                $c->app->log->info("no job found after 10 seconds of waiting");
-                return $c->render_not_found;
+            unless ($next && @$next==1) {
+                $c->app->log->info("no job found after 60 seconds of waiting");
+                return $c->render_not_found if $c->tx;
+                $c->app->log->info("client is gone");
+                return;
             }
-            $c->app->log->info("Job found, sending it out.");
-            return $c->render(code => 200, json => {job => $next} );
+            my $id = $next->[0];
+            $red->execute( [ set => "job:$id:state" => "taken" ]
+                => sub {
+                    $c->app->log->info("Job found, sending it out.");
+                    $c->render(code => 200, json => {job => $next} );
+                } );
         } );
 } => 'getjob';
 

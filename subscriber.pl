@@ -68,8 +68,10 @@ sub watch_files {
                          next if $card;
                          _log "job $job has no more deps.  It is ready.";
                          $red->execute(
-                            [ set => "job:$job:state" => 'ready' ],
-                            [ lpush => "jobs:ready" => $job ] , sub {
+                            [ set   => "job:$job:state" => 'ready' ],
+                            [ lpush => "jobs:ready"     => $job    ],
+                            [ srem  => "jobs:waiting"   => $job    ],
+                            , sub {
                                 _log "made job $job ready";
                             } );
                      } continue {

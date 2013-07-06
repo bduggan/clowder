@@ -70,19 +70,33 @@ my $check = _sys(qq[./check_job.pl --id $job->{id}]);
 is $check->{id}, $job->{id}, "got id from check_job";
 is $check->{state}, 'taken', "state is taken";
 
-# submit a job that depends on key 99
-$job = _sys(qq[./submit_job.pl --app cat --keys 99]);
-ok $job->{id}, "new job id : $job->{id}";
-is $job->{state}, 'waiting', "new job is waiting";
+my $count = 10;
+# submit 10 jobs that depends on key 99
+my @jobs;
+for (1..$count) {
+    $job = _sys(qq[./submit_job.pl --app cat --keys 99]);
+    ok $job->{id}, "new job id : $job->{id}";
+    is $job->{state}, 'waiting', "new job is waiting";
+    $check = _sys(qq[./check_job.pl --id $job->{id}]);
+    is $check->{id}, $job->{id}, "got id from check_job";
+    is $check->{state}, 'waiting', "state is waiting";
+    push @jobs, $job;
+}
 
-$check = _sys(qq[./check_job.pl --id $job->{id}]);
-is $check->{id}, $job->{id}, "got id from check_job";
-is $check->{state}, 'waiting', "state is waiting";
+my $counts = _sys(qq[mojo get $jobserver/jobs/waiting]);
+is $counts->{count}, $count, $count." jobs waiting";
 
 my $md5 = 'abcd' x 8;
 my $ingest = _sys(qq[./ingest_file.pl --key 99 --md5 $md5]);
-$check = _sys(qq[./check_job.pl --id $job->{id}]);
-is $check->{state}, 'taken', "state of $job->{id} is taken";
+
+for (1..2) {
+    my $job = $jobs[$_-1];
+    $check = _sys(qq[./check_job.pl --id $job->{id}]);
+    is $check->{state}, 'taken', "state of $job->{id} is taken";
+}
+
+$counts = _sys(qq[mojo get $jobserver/jobs/waiting]);
+is $counts->{count}, 0, "No jobs waiting";
 
 done_testing();
 

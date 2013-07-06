@@ -60,7 +60,7 @@ like $status->{status}, qr/removed/, 'cleaned up';
 # Submit a job with no dependencies.
 my $job = _sys(qq[./submit_job.pl --url $jobserver --app seq --params cli="1 10"]);
 ok $job->{id}, "Job with no deps";
-is $job->{state}, 'ready', "job with no deps is ready";
+is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
 
 my $check = _sys(qq[./check_job.pl --url $jobserver --id $job->{id}]);
 is $check->{id}, $job->{id}, "got id from check_job";

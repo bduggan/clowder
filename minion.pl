@@ -19,7 +19,7 @@ sub _log($) {
 
 my $base = $ARGV[0] or die "usage $0 <url>";
 
-my $ua = Mojo::UserAgent->new->connect_timeout(10)->request_timeout(30);
+my $ua = Mojo::UserAgent->new->connect_timeout(10)->request_timeout(70);
 
 $ua->on(error => sub {
         my ($ua,$err) = @_;

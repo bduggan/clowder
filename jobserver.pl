@@ -126,14 +126,18 @@ get '/job' => sub {
     $c->render_later;
     $c->red(new => 1)->brpop('jobs:ready' => 60 => sub {
             my $red = shift;
-            my $next = shift;
-            unless ($next && @$next==1) {
+            my $next = shift;  # $k == 'jobs:ready'
+            unless ($next) {
                 $c->app->log->info("no job found after 60 seconds of waiting");
                 return $c->render_not_found if $c->tx;
                 $c->app->log->info("client is gone");
                 return;
             }
-            my $id = $next->[0];
+            if (@$next > 2) {
+                $c->app->log->info("brpop return @$next");
+                return $c->render_exception("brpop returned @$next");
+            }
+            my $id = $next->[1];  # next is [ 'jobs:ready' => $id ]
             $red->execute( [ set => "job:$id:state" => "taken" ]
                 => sub {
                     $c->app->log->info("Job found, sending it out.");

@@ -47,7 +47,14 @@ my $count = 2;
 # submit $count jobs that depends on key 99
 my @jobs;
 for (1..$count) {
-    $got = sys(qq[./submit_job.pl --app ./app.pl --params sleep=8 --keys 99 --params deps=99 num=$_]);
+    $got = $ua->post("$jobserver/job" => json => {
+            app => './app.pl',
+            deps => [ 99 ],
+            params => {
+                sleep => 8,
+                num => $_
+            } })->res->json;
+    sleep 0.2;
     ok $got->{id}, "new job id : $got->{id}";
     is $got->{state}, 'waiting', "new job is waiting";
     $got = $ua->get("$jobserver/job/$got->{id}")->res->json;
@@ -55,11 +62,11 @@ for (1..$count) {
     push @jobs, $got;
 }
 
-my $counts = sys(qq[mojo get $jobserver/jobs/waiting]);
+my $counts = $ua->get("$jobserver/jobs/waiting")->res->json;
 is $counts->{count}, $count, $count." jobs waiting";
 
 my $md5 = 'abcd' x 8;
-my $ingest = sys(qq[./ingest_file.pl --key 99 --md5 $md5]);
+$got = $ua->post("$jobserver/file" => json => { key => 99, md5 => $md5 } );
 
 sleep 1;
 for (1..2) {
@@ -68,7 +75,7 @@ for (1..2) {
     is $got->{state}, 'taken', "state of $got->{id} is taken";
 }
 
-$counts = sys(qq[mojo get $jobserver/jobs/waiting]);
+$counts = $ua->get("$jobserver/jobs/waiting")->res->json;
 is $counts->{count}, 0, "No jobs waiting";
 
 sleep 2;

@@ -31,6 +31,7 @@ my $redis = Mojo::Redis->new();
 
 my $error_cb = sub {
         my ($red,$err) = @_;
+        warn "redis error : $err\n";
         app->log->warn("redis error : $err");
     };
 
@@ -39,7 +40,7 @@ app->helper(red => sub {
         my $c = shift;
         my %a = @_;
         return $redis unless $a{new};
-        my $red = Mojo::Redis->new();
+        my $red = Mojo::Redis->new() or die "could not connect to redis";
         $red->on(error => $error_cb );
         return $red;
     });
@@ -194,9 +195,11 @@ post '/file' => sub {
 
 Mojo::IOLoop->recurring(
     2 => sub {
-        Mojo::Redis->new()->smembers('jobs:waiting' => sub {
+        app->red->smembers('jobs:waiting' => sub {
             my ($rd,$rlt) =  @_;
-            app->log->info("still waiting : @$rlt");
+            if ($rlt && @$rlt) {
+                app->log->info("jobs waiting : @$rlt");
+            }
         });
     }
 );

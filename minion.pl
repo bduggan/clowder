@@ -38,7 +38,11 @@ my %processes;
 
 sub notify_jobserver {
     my ($job, $process) = @_;
-    my $pinfo = $json->decode($processes{$process->pid}->{stdout});
+    my $stdout = $processes{$process->pid}->{stdout};
+    my $pinfo = eval { $json->decode($stdout) };
+    if ($@) {
+        _log("error decoding output : $stdout : $@ ");
+    }
     $pinfo->{state} = 'complete';
     $ua->post("$base/job/".$job->{id} => json => $pinfo => sub {
             $log->info("job $job->{id} complete");

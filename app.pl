@@ -26,7 +26,7 @@ my $output = {
     host      => hostname(),
 };
 
-my $p = $input->{params};
+my $p = $input->{params} || {};
 
 if (my $secs = $p->{sleep}) {
     sleep $secs;

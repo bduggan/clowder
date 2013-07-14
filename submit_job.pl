@@ -26,8 +26,8 @@ die "missing app" unless $app;
 
 my $ua = Mojo::UserAgent->new;
 $url = Mojo::URL->new($url);
-my $put_url = $url->clone->path('/job');
-my $tx = $ua->put($put_url => {} => json => { app => $app, params => \%job_params, deps => \@keys } );
+$url->path('/job');
+my $tx = $ua->post($url => {} => json => { app => $app, params => \%job_params, deps => \@keys } );
 my $res = $tx->success;
 if ($res && $res->code==202) {
     say $tx->res->body;

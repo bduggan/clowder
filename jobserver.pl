@@ -96,7 +96,7 @@ post '/clean' => sub {
 #
 # See subcriber.pl for how the file:* keys are used.
 #
-put '/job' => sub {
+post '/job' => sub {
     my $c = shift;
     my $job = $c->req->json;
     my $deps = $job->{deps};

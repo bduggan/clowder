@@ -9,6 +9,7 @@ use Data::Dumper;
 use Path::Class qw/file/;
 use Test::More;
 use FindBin;
+use Mojo::UserAgent;
 use lib $FindBin::Bin;
 use testlib;
 
@@ -18,37 +19,40 @@ BEGIN {
 
 my $jobserver = testlib->start_cluster;
 
-my $status = sys(qq[mojo get --method=POST $jobserver/clean]);
-like $status->{status}, qr/removed/, 'cleaned up';
+my $ua = Mojo::UserAgent->new();
+my $got;
+
+$got = $ua->post("$jobserver/clean")->res->json;
+like $got->{status}, qr/removed/, 'cleaned up';
 
 # Simple job with no dependencies.
-my $job = sys(qq[./submit_job.pl --app ./app.pl --params deps=none]);
-ok $job->{id}, "Job with no deps";
-is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
+$got = sys(qq[./submit_job.pl --app ./app.pl --params deps=none]);
+ok $got->{id}, "Job with no deps";
+is $got->{state}, 'ready', "job $got->{id} with no deps is ready";
 sleep 1;
-my $check = sys(qq[./check_job.pl --id $job->{id}]);
-is $check->{state}, 'complete', "Completed trivial job";
+$got = sys(qq[./check_job.pl --id $got->{id}]);
+is $got->{state}, 'complete', "Completed trivial job";
 
 # Add two numbers.
-$job = sys(qq[./submit_job.pl --app ./app.pl --params eval_perl='3+7']);
-ok $job->{id}, "Job with no deps";
-is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
+$got = sys(qq[./submit_job.pl --app ./app.pl --params eval_perl='3+7']);
+ok $got->{id}, "Job with no deps";
+is $got->{state}, 'ready', "job $got->{id} with no deps is ready";
 sleep 1;
-$check = sys(qq[./check_job.pl --id $job->{id}]);
-is $check->{state}, 'complete', "Completed addition job";
-is $check->{results}{eval_results}, 10, "Added 3 + 7, got 10";
+$got = sys(qq[./check_job.pl --id $got->{id}]);
+is $got->{state}, 'complete', "Completed addition job";
+is $got->{results}{eval_results}, 10, "Added 3 + 7, got 10";
 
 my $count = 2;
 # submit $count jobs that depends on key 99
 my @jobs;
 for (1..$count) {
-    $job = sys(qq[./submit_job.pl --app ./app.pl --params sleep=8 --keys 99 --params deps=99 num=$_]);
-    ok $job->{id}, "new job id : $job->{id}";
-    is $job->{state}, 'waiting', "new job is waiting";
-    $check = sys(qq[./check_job.pl --id $job->{id}]);
-    is $check->{id}, $job->{id}, "got id from check_job" or diag explain $check;
-    is $check->{state}, 'waiting', "state is waiting";
-    push @jobs, $job;
+    $got = sys(qq[./submit_job.pl --app ./app.pl --params sleep=8 --keys 99 --params deps=99 num=$_]);
+    ok $got->{id}, "new job id : $got->{id}";
+    is $got->{state}, 'waiting', "new job is waiting";
+    $got = sys(qq[./check_job.pl --id $got->{id}]);
+    is $got->{id}, $got->{id}, "got id from check_job" or diag explain $got;
+    is $got->{state}, 'waiting', "state is waiting";
+    push @jobs, $got;
 }
 
 my $counts = sys(qq[mojo get $jobserver/jobs/waiting]);
@@ -58,9 +62,9 @@ my $md5 = 'abcd' x 8;
 my $ingest = sys(qq[./ingest_file.pl --key 99 --md5 $md5]);
 
 for (1..2) {
-    my $job = $jobs[$_-1];
-    $check = sys(qq[./check_job.pl --id $job->{id}]);
-    is $check->{state}, 'taken', "state of $job->{id} is taken";
+    my $got = $jobs[$_-1];
+    $got = sys(qq[./check_job.pl --id $got->{id}]);
+    is $got->{state}, 'taken', "state of $got->{id} is taken";
 }
 
 $counts = sys(qq[mojo get $jobserver/jobs/waiting]);

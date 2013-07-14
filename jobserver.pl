@@ -162,6 +162,7 @@ get '/job' => sub {
     $c->red(new => 1)->brpop('jobs:ready' => 60 => sub {
             my $red = shift;
             my $next = shift;  # $k == 'jobs:ready'
+            return unless $c;
             unless ($next) {
                 $c->app->log->info("no job found after 60 seconds of waiting");
                 return $c->render_not_found if $c->tx;

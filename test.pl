@@ -7,9 +7,17 @@ use JSON::XS;
 use Data::Dumper;
 use Path::Class qw/file/;
 use Test::More;
+use Test::RedisServer;
 
 chdir file($0)->dir;
 -d 'log' or mkdir 'log' or die $!;
+
+my $json = JSON::XS->new();
+my $red = Test::RedisServer->new(conf => { port => 9999, bind => '127.0.0.1' });
+# until Mojo::Redis supports unix sockets
+$ENV{TEST_REDIS_CONNECT_INFO} = $red->connect_info;
+
+my $redis_pid = $red->pid;
 
 my $jobserver = 'http://localhost:8080';
 

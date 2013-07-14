@@ -13,16 +13,25 @@ $| = 1;
 $SIG{'USR2'} = sub { Mojo::IOLoop->stop; exit; };
 
 my $log = Mojo::Log->new(path => 'log/subscriber.log', level => 'debug');
-sub _log($) {
-    $log->info("@_");
-}
-
+sub _log($) { $log->info("@_"); }
+my $json = JSON::XS->new;
 my %connections;
+my $app_name = 'subscriber';
+my $error_cb = sub {
+        my ($red,$err) = @_;
+        warn "redis error ($app_name) : $err\n";
+        $log->error("redis error : $err");
+    };
+sub new_connection {
+    my $conn = $ENV{TEST_REDIS_CONNECT_INFO};
+    my $redis = Mojo::Redis->new( $conn ? ( server => $ENV{TEST_REDIS_CONNECT_INFO} ) : () );
+    return $redis;
+}
 sub _red {
     my %a = @_;
-    return Mojo::Redis->new if $a{new};
+    return new_connection() if $a{new};
     my $which = $a{which} || 'default';
-    $connections{$which} ||= Mojo::Redis->new;
+    $connections{$which} ||= new_connection();
     return $connections{$which};
 }
 
@@ -33,9 +42,9 @@ sub _red {
 # Look for jobs which are waiting for this key.  For each job, if
 # there are no more dependencies, change the status to 'ready'.
 #
-my $json = JSON::XS->new;
 sub watch_files {
     my ($redis, $data) = @_;
+    return unless $data;
     my ($action,$queue,$msg) = @$data;
     _log "files: action $action";
     return unless $action eq 'message';

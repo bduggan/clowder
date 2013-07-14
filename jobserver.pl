@@ -27,22 +27,26 @@ use Mojo::Redis;
 use Data::Dumper;
 
 my $json = Mojo::JSON->new();
-my $redis = Mojo::Redis->new();
-
+my $app_name = 'jobserver';
 my $error_cb = sub {
         my ($red,$err) = @_;
-        warn "redis error : $err\n";
-        app->log->warn("redis error : $err");
+        warn "redis error ($app_name) : $err\n";
+        app->log->error("redis error : $err");
     };
-
-$redis->on(error => $error_cb);
+sub new_connection {
+    app->log->debug('new redis connection');
+    my $conn = $ENV{TEST_REDIS_CONNECT_INFO};
+    my $redis = Mojo::Redis->new( $conn ? ( server => $ENV{TEST_REDIS_CONNECT_INFO} ) : () );
+    $redis->on(error => $error_cb );
+    return $redis;
+}
 app->helper(red => sub {
         my $c = shift;
+        state $redis;
         my %a = @_;
-        return $redis unless $a{new};
-        my $red = Mojo::Redis->new() or die "could not connect to redis";
-        $red->on(error => $error_cb );
-        return $red;
+        return new_connection() if $a{new};
+        $redis ||= new_connection();
+        return $redis;
     });
 app->helper(new_id => sub {
         my $c = shift;
@@ -70,7 +74,8 @@ post '/clean' => sub {
     $c->red->execute(
         ['keys' => '*'], sub {
             my $red = shift;
-            my $vals = shift;
+            my $vals = shift or return;
+            return $c->render(json => { status => 'removed 0 keys'}) unless @$vals;
             $red->execute(
                  ( map [ 'del' => $_ ], grep defined, @$vals ), sub {
                     $c->render(json => { status => "removed ".@$vals." keys "});
@@ -174,7 +179,7 @@ get '/job' => sub {
 
 get '/jobs/waiting' => sub {
     my $c = shift;
-    $redis->execute(scard => 'jobs:waiting' => sub {
+    $c->app->red->execute(scard => 'jobs:waiting' => sub {
             my ($redis, $count) = @_;
             $c->render(json => { count => $count } );
         }

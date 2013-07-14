@@ -45,6 +45,7 @@ sub start_cluster {
     # "Key"s represent files, or a granule of data.
     # We represent them with hashes; the content doesn't matter.
     #
+    chdir '../script' or die "chdir : $!";
     -d 'log' or mkdir 'log' or die $!;
     _spawn "morbo ./jobserver.pl --listen $jobserver";
     _spawn "./minion.pl $jobserver";

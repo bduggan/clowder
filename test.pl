@@ -3,87 +3,38 @@
 use strict;
 use warnings;
 use feature qw/:all/;
+
 use JSON::XS;
 use Data::Dumper;
 use Path::Class qw/file/;
 use Test::More;
-use Test::RedisServer;
+use FindBin;
+use lib $FindBin::Bin;
+use testlib;
 
-chdir file($0)->dir;
--d 'log' or mkdir 'log' or die $!;
-
-my $json = JSON::XS->new();
-my $red = Test::RedisServer->new(conf => { port => 9999, bind => '127.0.0.1' });
-# until Mojo::Redis supports unix sockets
-$ENV{TEST_REDIS_CONNECT_INFO} = $red->connect_info;
-
-my $redis_pid = $red->pid;
-
-my $jobserver = 'http://localhost:8080';
-
-#
-# Start jobserver.pl, which waits for new jobs to do.
-# Start minion.pl which runs the jobs for you.
-# submit_job.pl will submit a job request
-# ingest_file.pl adds files (using REST)
-# subscriber.pl watches changes in state
-# so that as dependencies arrive, the minions don't have to wait.
-#
-# Use check_job.pl in order to see
-# if your job is running or waiting for a key.
-# "Key"s represent files, or a granule of data.
-# We represent them with hashes; the content doesn't matter.
-#
-
-system('pkill -f morbo') if $ENV{KILL_RUNAWAY_MORBO};
-
-my %processes;
-sub _spawn($) {
-    my ($cmd) = @_;
-    my $pid;
-    unless ($pid = fork) {
-        open STDOUT, "| egrep -v available";
-        exec $cmd;
-        die "notreached";
-    }
-    $processes{$pid} = $cmd;
-    ok $pid, "started $cmd";
-    sleep 1;
+BEGIN {
+    chdir file($0)->dir;
 }
 
-sub _sys {
-    my $cmd = shift;
-    my $json = JSON::XS->new();
-    $ENV{JOBSERVER} = $jobserver;
-    my $got = `$cmd`;
-    my $decoded = eval { $json->decode($got) };
-    die "Invalid JSON running $cmd\n: $got" if $@;
-    return $decoded;
-}
+my $jobserver = testlib->start_cluster;
 
-my $pid;
-
-_spawn "morbo ./jobserver.pl --listen $jobserver";
-_spawn "./minion.pl $jobserver";
-_spawn "./subscriber.pl $jobserver";
-
-my $status = _sys qq[mojo get --method=POST $jobserver/clean];
+my $status = sys(qq[mojo get --method=POST $jobserver/clean]);
 like $status->{status}, qr/removed/, 'cleaned up';
 
 # Simple job with no dependencies.
-my $job = _sys(qq[./submit_job.pl --app ./app.pl --params deps=none]);
+my $job = sys(qq[./submit_job.pl --app ./app.pl --params deps=none]);
 ok $job->{id}, "Job with no deps";
 is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
 sleep 1;
-my $check = _sys(qq[./check_job.pl --id $job->{id}]);
+my $check = sys(qq[./check_job.pl --id $job->{id}]);
 is $check->{state}, 'complete', "Completed trivial job";
 
 # Add two numbers.
-$job = _sys(qq[./submit_job.pl --app ./app.pl --params eval_perl='3+7']);
+$job = sys(qq[./submit_job.pl --app ./app.pl --params eval_perl='3+7']);
 ok $job->{id}, "Job with no deps";
 is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
 sleep 1;
-$check = _sys(qq[./check_job.pl --id $job->{id}]);
+$check = sys(qq[./check_job.pl --id $job->{id}]);
 is $check->{state}, 'complete', "Completed addition job";
 is $check->{results}{eval_results}, 10, "Added 3 + 7, got 10";
 
@@ -91,28 +42,28 @@ my $count = 2;
 # submit $count jobs that depends on key 99
 my @jobs;
 for (1..$count) {
-    $job = _sys(qq[./submit_job.pl --app ./app.pl --params sleep=8 --keys 99 --params deps=99 num=$_]);
+    $job = sys(qq[./submit_job.pl --app ./app.pl --params sleep=8 --keys 99 --params deps=99 num=$_]);
     ok $job->{id}, "new job id : $job->{id}";
     is $job->{state}, 'waiting', "new job is waiting";
-    $check = _sys(qq[./check_job.pl --id $job->{id}]);
+    $check = sys(qq[./check_job.pl --id $job->{id}]);
     is $check->{id}, $job->{id}, "got id from check_job" or diag explain $check;
     is $check->{state}, 'waiting', "state is waiting";
     push @jobs, $job;
 }
 
-my $counts = _sys(qq[mojo get $jobserver/jobs/waiting]);
+my $counts = sys(qq[mojo get $jobserver/jobs/waiting]);
 is $counts->{count}, $count, $count." jobs waiting";
 
 my $md5 = 'abcd' x 8;
-my $ingest = _sys(qq[./ingest_file.pl --key 99 --md5 $md5]);
+my $ingest = sys(qq[./ingest_file.pl --key 99 --md5 $md5]);
 
 for (1..2) {
     my $job = $jobs[$_-1];
-    $check = _sys(qq[./check_job.pl --id $job->{id}]);
+    $check = sys(qq[./check_job.pl --id $job->{id}]);
     is $check->{state}, 'taken', "state of $job->{id} is taken";
 }
 
-$counts = _sys(qq[mojo get $jobserver/jobs/waiting]);
+$counts = sys(qq[mojo get $jobserver/jobs/waiting]);
 is $counts->{count}, 0, "No jobs waiting";
 
 sleep 2;
@@ -121,17 +72,6 @@ done_testing();
 
 END {
     diag "cleaning up";
-    for my $pid (keys %processes) {
-        if ($processes{$pid} =~ /hypnotoad/) {
-            `hypnotoad -s ./jobserver.pl`;
-            next;
-        }
-        if (kill 0, $pid) {
-            sleep 1;
-            kill 'USR2', $pid;
-            my $kid =  waitpid($pid,0);
-            warn "$pid did not die "unless $kid==$pid;
-        }
-    }
+    testlib->cleanup;
     exit 0;
 }

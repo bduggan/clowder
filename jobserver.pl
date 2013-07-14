@@ -35,8 +35,8 @@ my $error_cb = sub {
         app->log->error("redis error : $err");
     };
 sub new_connection {
-    app->log->debug('new redis connection');
     my $conn = $ENV{TEST_REDIS_CONNECT_INFO};
+    app->log->debug('new redis connection : '.($conn // 'default'));
     my $redis = Mojo::Redis->new( $conn ? ( server => $ENV{TEST_REDIS_CONNECT_INFO} ) : () );
     $redis->on(error => $error_cb );
     return $redis;

@@ -12,8 +12,9 @@ clowder uses these redis keys :
     ----------------- ----------- ---------------
     global:nextid     integer     sequence (for making jobids)
     job:$id:spec      JSON        complete job specification (i.e. app, params)
-    job:$id:state     string      state : ready, waiting, taken
+    job:$id:state     string      state : ready, waiting, taken, complete
     job:$id:deps      set         set of keys on which this job depends
+    job:$id:results   JSON        results from running app
     file:$key:jobs    set         set of jobs for which this file key is waiting
     jobs:waiting      set         set of job ids that are waiting for files
     jobs:ready        list        list of jobs ready to be taken by minions
@@ -136,11 +137,20 @@ get '/job/:id' => sub {
     $c->red->execute(
         [ get => "job:$id:spec" ],
         [ get => "job:$id:state" ],
+        [ get => "job:$id:results" ],
         sub {
             my $r = shift;
-            my ($spec,$state) = @_;
+            my ($spec,$state,$results) = @_;
             return $c->render_not_found unless $spec;
-            $c->render(json => { %{ $json->decode($spec) }, state => $state } );
+            $results &&= $json->decode($results);
+            $spec &&= $json->decode($spec);
+            my $response = {
+                id => $id,
+                state => $state,
+                spec => $spec,
+                results => $results,
+            };
+            $c->render(json => $response );
         }
     );
     $c->render_later;
@@ -196,6 +206,20 @@ post '/file' => sub {
     $c->red->publish('files:ingest' => $c->req->body) or die "could not publish";
     nb "finished publishing : ".$c->req->body;
     $c->render(json => { status => 'ok' });
+};
+
+post '/job/:id' => sub {
+    # a job has changed state
+    my $c = shift;
+    my $id = $c->stash('id');
+    my $job = $c->req->json;
+    $c->red->execute(
+        [ set => "job:$id:state" => $job->{state} ],
+        [ set => "job:$id:results" => $json->encode($job) ], sub {
+            my ($red,$one,$two ) = @_;
+            $c->render(json => { status => 'ok' } );
+        } );
+    $c->render_later;
 };
 
 Mojo::IOLoop->recurring(

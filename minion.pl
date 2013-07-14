@@ -37,8 +37,13 @@ my $max_jobs = 4;
 my %processes;
 
 sub notify_jobserver {
-    my $pid = shift;
-    # TODO
+    my ($job, $process) = @_;
+    my $pinfo = $json->decode($processes{$process->pid}->{stdout});
+    $pinfo->{state} = 'complete';
+    $ua->post("$base/job/".$job->{id} => json => $pinfo => sub {
+            $log->info("job $job->{id} complete");
+        }
+    );
 }
 
 sub run_job {
@@ -59,12 +64,12 @@ sub run_job {
         on_stderr => sub {
             my ($p, $line ) = @_;
             $line //= '<undef>';
-            _log "$label : $line";
+            _log "$label (stderr) : $line";
         },
         on_exit => sub {
             my ( $p, $status, $sig ) = @_;
             _log "$label exited with status $status";
-            notify_jobserver( $p->pid );
+            notify_jobserver( $job, $p);
             delete $processes{ $p->pid };
         }
     );
@@ -104,7 +109,7 @@ sub get_next_job {
                      " request :\n".$tx->req->to_string."\n".
                      " response : ".$tx->res->to_string;
             }
-            _log "got a job : ".Dumper($job);
+            _log "got a job, id $job->{id} ";
             run_job($job);
             get_next_job();
         } );

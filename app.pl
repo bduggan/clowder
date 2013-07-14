@@ -17,7 +17,7 @@ my $json = JSON::XS->new();
 my $spec = ( (join '', <>) || "{}" );
 my $input = eval { $json->decode($spec); } || Load ($spec);
 
-print STDERR "input is ".Dumper($input);
+print STDERR "running job.  id is $input->{id}\n";
 
 my $output = {
     input     => $input,
@@ -26,20 +26,22 @@ my $output = {
     host      => hostname(),
 };
 
-if (my $secs = $input->{params}{sleep}) {
+my $p = $input->{params};
+
+if (my $secs = $p->{sleep}) {
     sleep $secs;
 }
-if (my $err = $input->{die_with_error}) {
+if (my $err = $p->{die_with_error}) {
     die $err;
 }
 
-if (my $write_files = $input->{write_files}) {
+if (my $write_files = $p->{write_files}) {
     for (@$write_files) {
         file($_->{name})->spew($_->{content});
     }
 }
 
-if (my $eval_perl = $input->{eval_perl}) {
+if (my $eval_perl = $p->{eval_perl}) {
     $output->{eval_results} = eval $eval_perl;
     $output->{eval_errors} = "$@";
 }

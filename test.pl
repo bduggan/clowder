@@ -70,24 +70,32 @@ _spawn "./subscriber.pl $jobserver";
 my $status = _sys qq[mojo get --method=POST $jobserver/clean];
 like $status->{status}, qr/removed/, 'cleaned up';
 
-# Submit a job with no dependencies.
+# Simple job with no dependencies.
 my $job = _sys(qq[./submit_job.pl --app ./app.pl --params deps=none]);
 ok $job->{id}, "Job with no deps";
 is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
-
+sleep 1;
 my $check = _sys(qq[./check_job.pl --id $job->{id}]);
-is $check->{id}, $job->{id}, "got id from check_job";
-is $check->{state}, 'taken', "state is taken";
+is $check->{state}, 'complete', "Completed trivial job";
 
-my $count = 10;
-# submit 10 jobs that depends on key 99
+# Add two numbers.
+$job = _sys(qq[./submit_job.pl --app ./app.pl --params eval_perl='3+7']);
+ok $job->{id}, "Job with no deps";
+is $job->{state}, 'ready', "job $job->{id} with no deps is ready";
+sleep 1;
+$check = _sys(qq[./check_job.pl --id $job->{id}]);
+is $check->{state}, 'complete', "Completed addition job";
+is $check->{results}{eval_results}, 10, "Added 3 + 7, got 10";
+
+my $count = 2;
+# submit $count jobs that depends on key 99
 my @jobs;
 for (1..$count) {
     $job = _sys(qq[./submit_job.pl --app ./app.pl --params sleep=8 --keys 99 --params deps=99 num=$_]);
     ok $job->{id}, "new job id : $job->{id}";
     is $job->{state}, 'waiting', "new job is waiting";
     $check = _sys(qq[./check_job.pl --id $job->{id}]);
-    is $check->{id}, $job->{id}, "got id from check_job";
+    is $check->{id}, $job->{id}, "got id from check_job" or diag explain $check;
     is $check->{state}, 'waiting', "state is waiting";
     push @jobs, $job;
 }
@@ -107,7 +115,7 @@ for (1..2) {
 $counts = _sys(qq[mojo get $jobserver/jobs/waiting]);
 is $counts->{count}, 0, "No jobs waiting";
 
-sleep 10;
+sleep 2;
 
 done_testing();
 

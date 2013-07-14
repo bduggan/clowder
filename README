@@ -5,8 +5,18 @@ server which uses HTTP as a transport and redis as a backend.
 
 Quick start :
 
-./red/start_red
-./test.pl
+Test :
+    prove t/01-process.t
+
+Run :
+    JOBSERVER=http://localhost:3000
+    cd script
+    redis-server &
+    ./jobserver.pl daemon --listen $JOBSERVER &
+    ./subscriber.pl &
+    ./minion.pl $JOBSERVER &
+    ./submit_job.pl --app './app.pl'
+    ./check_job.pl --id 1
 
 System Architecture :
 
@@ -26,9 +36,6 @@ System Architecture :
    We represent them with hashes; the content doesn't matter.
 
 Contents :
-
-- test.pl : test everything
-- red/start_red : sample redis start script
 
 - jobserver.pl   : job server
 - minion.pl      : sample job processor (minion)

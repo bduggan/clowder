@@ -15,6 +15,7 @@ $| = 1;
 
 $SIG{'USR2'} = sub { Mojo::IOLoop->stop; exit; };
 
+-d 'log' or mkdir 'log' or die $!;
 my $log = Mojo::Log->new(path => 'log/minion.log', level => 'debug');
 
 my $json = JSON::XS->new();

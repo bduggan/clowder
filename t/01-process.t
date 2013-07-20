@@ -1,5 +1,8 @@
 #!/usr/bin/env perl
 
+# TODO : a job that depends on one of several keys
+# TODO : a job with several rules, each of which sets dependencies
+
 use strict;
 use warnings;
 use feature qw/:all/;
@@ -41,6 +44,10 @@ sleep 1;
 $got = $ua->get("$jobserver/job/$got->{id}")->res->json;
 is $got->{state}, 'complete', "Completed addition job";
 is $got->{results}{eval_results}, 10, "Added 3 + 7, got 10";
+
+# Put one number in one input file, another number in another input file.
+# Run an app that adds two numbers and stores the results in a third file.
+
 
 # TODO tell app to die and look for an error
 my $count = 2;

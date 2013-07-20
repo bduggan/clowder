@@ -26,29 +26,14 @@ use Mojolicious::Lite;
 use Mojo::JSON;
 use Mojo::Redis;
 use Data::Dumper;
+use FindBin;
+
+use lib "$FindBin::Bin/../lib";
+
+app->moniker('jobserver');
+plugin 'red';
 
 my $json = Mojo::JSON->new();
-my $app_name = 'jobserver';
-my $error_cb = sub {
-        my ($red,$err) = @_;
-        warn "redis error ($app_name) : $err\n";
-        app->log->error("redis error : $err");
-    };
-sub new_connection {
-    my $conn = $ENV{TEST_REDIS_CONNECT_INFO};
-    app->log->debug('new redis connection : '.($conn // 'default'));
-    my $redis = Mojo::Redis->new( $conn ? ( server => $ENV{TEST_REDIS_CONNECT_INFO} ) : () );
-    $redis->on(error => $error_cb );
-    return $redis;
-}
-app->helper(red => sub {
-        my $c = shift;
-        state $redis;
-        my %a = @_;
-        return new_connection() if $a{new};
-        $redis ||= new_connection();
-        return $redis;
-    });
 app->helper(new_id => sub {
         my $c = shift;
         my $i;

@@ -4,6 +4,10 @@ use Mojo::Redis;
 use Mojo::Log;
 use Data::Dumper;
 use JSON::XS;
+use FindBin;
+use lib "$FindBin::Bin/../lib";
+use Mojolicious::Plugin::Red;
+
 use warnings;
 use strict;
 use feature qw/:all/;
@@ -15,24 +19,11 @@ $SIG{'USR2'} = sub { Mojo::IOLoop->stop; exit; };
 my $log = Mojo::Log->new(path => 'log/subscriber.log', level => 'debug');
 sub _log($) { $log->info("@_"); }
 my $json = JSON::XS->new;
-my %connections;
-my $app_name = 'subscriber';
-my $error_cb = sub {
-        my ($red,$err) = @_;
-        warn "redis error ($app_name) : $err\n";
-        $log->error("redis error : $err");
-    };
-sub new_connection {
-    my $conn = $ENV{TEST_REDIS_CONNECT_INFO};
-    my $redis = Mojo::Redis->new( $conn ? ( server => $ENV{TEST_REDIS_CONNECT_INFO} ) : () );
-    return $redis;
-}
+my $cb = Mojolicious::Plugin::Red->make_helper(app_name => 'subscriber', log => $log);
+
 sub _red {
     my %a = @_;
-    return new_connection() if $a{new};
-    my $which = $a{which} || 'default';
-    $connections{$which} ||= new_connection();
-    return $connections{$which};
+    return $cb->('',%a);
 }
 
 #

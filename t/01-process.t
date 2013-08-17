@@ -15,6 +15,7 @@ use FindBin;
 use Mojo::UserAgent;
 use lib $FindBin::Bin;
 use testlib;
+use Yars::Client;
 
 BEGIN {
     chdir file($0)->dir;
@@ -47,7 +48,14 @@ is $got->{results}{eval_results}, 10, "Added 3 + 7, got 10";
 
 # Put one number in one input file, another number in another input file.
 # Run an app that adds two numbers and stores the results in a third file.
-
+my $first = 1239;
+my $second = 89823;
+my $y = Yars::Client->new();
+$y->put(first => $first);
+my $first_location = $y->res->headers->location; #header('Content-MD5');
+say "# first location $first_location";
+say "# first response ".$y->res->to_string;
+$y->put(second => $second);
 
 # TODO tell app to die and look for an error
 my $count = 2;

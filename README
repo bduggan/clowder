@@ -35,6 +35,9 @@ System Architecture :
   "Key"s represent files, or a granule of data.
    We represent them with hashes; the content doesn't matter.
 
+   The hashes, in fact, are only to tell
+   Where the file is (it's URL)
+
 Contents :
 
 - jobserver.pl   : job server

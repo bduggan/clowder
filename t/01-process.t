@@ -15,6 +15,8 @@ use FindBin;
 use Mojo::UserAgent;
 use lib $FindBin::Bin;
 use testlib;
+
+use lib $ENV{HOME}.'/acps/Yars-Client/lib';
 use Yars::Client;
 
 BEGIN {
@@ -51,11 +53,33 @@ is $got->{results}{eval_results}, 10, "Added 3 + 7, got 10";
 my $first = 1239;
 my $second = 89823;
 my $y = Yars::Client->new();
-$y->put(first => $first);
-my $first_location = $y->res->headers->location; #header('Content-MD5');
-say "# first location $first_location";
-say "# first response ".$y->res->to_string;
-$y->put(second => $second);
+my $first_location = $y->send(content => $first) or die $y->errorstring;
+my $second_location = $y->send(content => $second) or die $y->errorstring;
+
+$got = $ua->post("$jobserver/job" => json =>
+    { app => './app.pl',
+      deps => [ 100, 200 ],
+      params => {
+         eval_perl => q[
+                sandbox->lookup(100) + sandbox->lookup(200);
+         ]
+      }
+    }
+)->res->json;
+
+# TODO try to ingest files before queuing job.
+
+ok $got->{id}, "Job with two input files.";
+is $got->{state}, 'waiting', "job $got->{id} with two input files is waiting";
+
+$ua->post("$jobserver/file" => json => { key => 100, url => $first_location } );
+$ua->post("$jobserver/file" => json => { key => 200, url => $second_location } );
+
+sleep 2;
+
+$got = $ua->get("$jobserver/job/$got->{id}")->res->json;
+is $got->{state}, 'complete', "Completed job with two input files";
+is $got->{results}{eval_results}, 1239 + 89823, "Added 1239 + 89823, got ".( 1239 + 89823 );
 
 # TODO tell app to die and look for an error
 my $count = 2;
@@ -80,8 +104,7 @@ for (1..$count) {
 my $counts = $ua->get("$jobserver/jobs/waiting")->res->json;
 is $counts->{count}, $count, $count." jobs waiting";
 
-my $md5 = 'abcd' x 8;
-$got = $ua->post("$jobserver/file" => json => { key => 99, md5 => $md5 } );
+$got = $ua->post("$jobserver/file" => json => { key => 99, url => 'http://example.com' } );
 
 sleep 1;
 for (1..2) {

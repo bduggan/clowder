@@ -22,10 +22,6 @@ BEGIN {
     chdir file($0)->dir;
 }
 
-unless ($Mojolicious::VERSION == 4.16) {
-    say "# warning : This is only known to work with mojolicious 4.16";
-    say "# and is known to fail with later versions";
-}
 my $jobserver = testlib->start_cluster;
 
 my $ua = Mojo::UserAgent->new();

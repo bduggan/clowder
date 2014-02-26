@@ -47,7 +47,7 @@ app->helper(new_id => sub {
         return $i;
     });
 app->log->level('debug');
-app->secret(42);
+app->secrets([42]);
 
 sub nb($) {
     app->log->debug(@_);

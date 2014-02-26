@@ -33,6 +33,18 @@ sub start_cluster {
     my $jobserver = 'http://localhost:8080';
     $ENV{JOBSERVER} = $jobserver;
 
+    # Start jobserver.pl, which waits for new jobs to do.
+    # Start minion.pl which runs the jobs for you.
+    # submit_job.pl will submit a job request
+    # ingest_file.pl adds files (using REST)
+    # subscriber.pl watches changes in state
+    # so that as dependencies arrive, the minions don't have to wait.
+    #
+    # Use check_job.pl in order to see
+    # if your job is running or waiting for a key.
+    # "Key"s represent files, or a granule of data.
+    # We represent them with hashes; the content doesn't matter.
+    #
     chdir '../script' or die "chdir : $!";
     -d 'log' or mkdir 'log' or die $!;
     _spawn "morbo ./jobserver.pl --listen $jobserver";

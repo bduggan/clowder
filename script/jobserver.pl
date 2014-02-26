@@ -16,10 +16,9 @@ clowder uses these redis keys :
     job:$id:deps      set         set of keys on which this job depends
     job:$id:results   JSON        results from running app
     file:$key:jobs    set         set of jobs for which this file key is waiting
-    file:$key:url     string      url of a file that has been ingested
     jobs:waiting      set         set of job ids that are waiting for files
     jobs:ready        list        list of jobs ready to be taken by minions
-    files:ingest      channel     announcements of ingested file keys and urls
+    files:ingest      channel     announcements of ingested file keys and md5s
 
 =cut
 
@@ -188,26 +187,11 @@ post '/file' => sub {
     # a file has arrived.
     my $c = shift;
     my $spec = $c->req->json;
-    my ($key,$url) = @$spec{qw[key url]};
-    nb "# got file $key, url $url, publishing a message";
+    my ($key,$md5) = @$spec{qw[key md5]};
+    nb "# got file $key, publishing a message";
     $c->red->publish('files:ingest' => $c->req->body) or die "could not publish";
-    $c->red->set("file:$key:url" => $url);
     nb "finished publishing : ".$c->req->body;
     $c->render(json => { status => 'ok' });
-};
-
-get '/file/:key' => sub {
-    my $c = shift;
-    my $key = $c->stash('key');
-    $c->red->execute(
-        [ get => "file:$key:url" ],
-        sub {
-            my $r = shift;
-            my $url = shift or return $c->render_not_found;
-            return $c->redirect_to($url);
-        }
-    );
-    $c->render_later;
 };
 
 post '/job/:id' => sub {

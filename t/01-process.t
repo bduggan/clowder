@@ -12,14 +12,20 @@ use Data::Dumper;
 use Path::Class qw/file/;
 use Test::More;
 use FindBin;
+use Mojolicious ();
 use Mojo::UserAgent;
 use lib $FindBin::Bin;
 use testlib;
+use v5.14;
 
 BEGIN {
     chdir file($0)->dir;
 }
 
+unless ($Mojolicious::VERSION == 4.16) {
+    say "# warning : This is only known to work with mojolicious 4.16";
+    say "# and is known to fail with later versions";
+}
 my $jobserver = testlib->start_cluster;
 
 my $ua = Mojo::UserAgent->new();

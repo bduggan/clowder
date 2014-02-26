@@ -16,7 +16,14 @@ use Mojolicious ();
 use Mojo::UserAgent;
 use lib $FindBin::Bin;
 use testlib;
+use EV 4.15;
 use v5.14;
+
+use Mojo::Redis();
+if ($Mojo::Redis::VERSION > 0.9912) {
+diag 'WARNING : this is known to fail with Mojo::Redis version > 0.9912';
+diag 'try cpanm Mojo::Redis@0.9912';
+}
 
 BEGIN {
     chdir file($0)->dir;

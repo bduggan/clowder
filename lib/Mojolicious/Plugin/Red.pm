@@ -10,6 +10,9 @@ sub register {
     );
 }
 
+my %connections;
+my @refs;
+
 sub make_helper {
     my $self = shift;
     my %args = @_;
@@ -27,10 +30,11 @@ sub make_helper {
         my $conn = $ENV{TEST_REDIS_CONNECT_INFO};
         my $redis = Mojo::Redis->new( $conn ? ( server => $ENV{TEST_REDIS_CONNECT_INFO} ) : () );
         $redis->on(error => $error_cb );
+        $redis->connect;
+        push @refs, \$redis;
         return $redis;
     };
 
-    my %connections;
     return sub {
         my $c = shift;
         my %a = @_;

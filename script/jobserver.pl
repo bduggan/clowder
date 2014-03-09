@@ -219,6 +219,8 @@ Mojo::IOLoop->recurring(
     }
 );
 
+nb "starting job server $$ ".time;
+
 app->start; 
 
 __DATA__

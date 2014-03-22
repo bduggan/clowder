@@ -1,7 +1,7 @@
 # clowder [![Build Status](https://secure.travis-ci.org/bduggan/clowder.png)](http://travis-ci.org/bduggan/clowder)
 
-This is a prototype for a distributed event-driven job
-server which uses HTTP as a transport and redis as a backend.
+This is a prototype for a distributed event-driven job queue 
+which uses HTTP as a transport and [Redis](http://redis.io) as a backend.
 
 Quick start :
 

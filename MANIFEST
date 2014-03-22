@@ -3,7 +3,7 @@ lib/Clowder.pm
 lib/Mojolicious/Plugin/Red.pm
 MANIFEST			This list of files
 MANIFEST.SKIP
-README
+README.md
 script/app.pl
 script/check_job.pl
 script/ingest_file.pl

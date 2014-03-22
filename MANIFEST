@@ -1,24 +1,13 @@
 .travis.yml
-Build.PL
 lib/Clowder.pm
 lib/Mojolicious/Plugin/Red.pm
-log/subscriber.log
 MANIFEST			This list of files
+MANIFEST.SKIP
 README
 script/app.pl
 script/check_job.pl
 script/ingest_file.pl
 script/jobserver.pl
-script/log.fail/development.log
-script/log.fail/minion.log
-script/log.fail/subscriber.log
-script/log.old/development.log
-script/log.old/jobserver.log
-script/log.old/minion.log
-script/log.old/subscriber.log
-script/log/development.log
-script/log/minion.log
-script/log/subscriber.log
 script/minion.pl
 script/submit_job.pl
 script/subscriber.pl

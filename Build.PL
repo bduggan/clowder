@@ -5,7 +5,7 @@ use Module::Build;
 
 my $builder = Module::Build->new(
     module_name         => 'Clowder',
-    license             => 'Artistic_2_0',
+    license             => 'agpl_3',
     dist_author         => q{Brian Duggan <bduggan@matatu.org>},
     dist_version_from   => 'lib/Clowder.pm',
     dist_abstract       => 'RESTful data processing system',

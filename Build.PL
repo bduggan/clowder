@@ -27,11 +27,12 @@ my $builder = Module::Build->new(
           'FindBin'                  => 0,
           'AnyEvent::Open3::Simple'  => 0,
           'AnyEvent'                 => 0,
+          'EV'                       => 0,
     },
     requires => {
     },
     add_to_cleanup     => [ 'Clowder-*' ],
-    create_makefile_pl => 'traditional',
+    #create_makefile_pl => 'traditional',
 );
 
 $builder->create_build_script();

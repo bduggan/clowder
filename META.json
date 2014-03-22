@@ -1,0 +1,57 @@
+{
+   "abstract" : "RESTful data processing system",
+   "author" : [
+      "Brian Duggan <bduggan@matatu.org>"
+   ],
+   "dynamic_config" : 1,
+   "generated_by" : "Module::Build version 0.4203",
+   "license" : [
+      "artistic_2"
+   ],
+   "meta-spec" : {
+      "url" : "http://search.cpan.org/perldoc?CPAN::Meta::Spec",
+      "version" : "2"
+   },
+   "name" : "Clowder",
+   "prereqs" : {
+      "build" : {
+         "requires" : {
+            "AnyEvent" : "0",
+            "AnyEvent::Open3::Simple" : "0",
+            "EV" : "0",
+            "FindBin" : "0",
+            "Getopt::Long" : "0",
+            "JSON::XS" : "0",
+            "Mojo::Redis" : "0.9921",
+            "Mojolicious" : "0",
+            "Path::Class" : "0",
+            "Sys::Hostname" : "0",
+            "Test::More" : "0",
+            "Test::RedisServer" : "0",
+            "Time::HiRes" : "0",
+            "YAML::XS" : "0"
+         }
+      },
+      "configure" : {
+         "requires" : {
+            "Module::Build" : "0"
+         }
+      }
+   },
+   "provides" : {
+      "Clowder" : {
+         "file" : "lib/Clowder.pm",
+         "version" : "0.01"
+      },
+      "Mojolicious::Plugin::Red" : {
+         "file" : "lib/Mojolicious/Plugin/Red.pm"
+      }
+   },
+   "release_status" : "stable",
+   "resources" : {
+      "license" : [
+         "http://www.perlfoundation.org/artistic_license_2_0"
+      ]
+   },
+   "version" : "0.01"
+}

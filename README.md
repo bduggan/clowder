@@ -34,7 +34,7 @@ System Architecture :
     Use check_job.pl in order to see
     if your job is running or waiting for a key.
 
-   "Key"s represent files, or a granule of data.
+    "Key"s represent files, or a granule of data.
     We represent them with hashes; the content doesn't matter.
 
 Contents :

@@ -23,29 +23,24 @@ get '/data.json' => sub {
     $c->render_later;
 };
 
-# EventSource for log messages
-# from cookbook
-get '/events' => sub {
-  my $self = shift;
-
-  # Increase inactivity timeout for connection a bit
-  Mojo::IOLoop->stream($self->tx->connection)->timeout(300);
-
-  # Change content type
-  $self->res->headers->content_type('text/event-stream');
-
-  # Subscribe to "message" event and forward "log" events to browser
-  my $cb = $self->app->log->on(message => sub {
-    my ($log, $level, @lines) = @_;
-    $self->write("event:log\ndata: [$level] @lines\n\n");
+get '/seq' => sub {
+  my $c = shift;
+  Mojo::IOLoop->stream($c->tx->connection)->timeout(300);
+  $c->res->headers->content_type('text/event-stream');
+  my $i = 1;
+  my $id = Mojo::IOLoop->singleton->recurring(
+    1 => sub {
+      my $s = scalar localtime;
+      $s .= ' ';
+      $i = time % 10;
+      $s .= 'x' x $i;
+      $c->write("event:seq\ndata: $s\n\n");
+    }
+  );
+  $c->on(finish => sub {
+          $c->app->log->info("done");
+          Mojo::IOLoop->remove($id);
   });
-
-  # Unsubscribe from "message" event again once we are done
-  $self->on(finish => sub {
-    my $self = shift;
-    $self->app->log->unsubscribe(message => $cb);
-  });
-  $self->rendered;
 };
 
 app->start;

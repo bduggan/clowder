@@ -30,10 +30,7 @@ get '/seq' => sub {
   my $i = 1;
   my $id = Mojo::IOLoop->singleton->recurring(
     1 => sub {
-      my $s = scalar localtime;
-      $s .= ' ';
-      $i = time % 10;
-      $s .= 'x' x $i;
+      my $s = '123459';
       $c->write("event:seq\ndata: $s\n\n");
     }
   );

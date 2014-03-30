@@ -2,9 +2,12 @@
 <html>
   <head>
   <title><%= title %></title>
-    %= stylesheet '//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css';
-    %= javascript "//cdnjs.cloudflare.com/ajax/libs/d3/3.4.2/d3.min.js", charset => 'utf-8';
-    %= javascript '//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.0/jquery.min.js';
+    %# stylesheet '//netdna.bootstrapcdn.com/bootstrap/3.1.1/css/bootstrap.min.css';
+    %# javascript "//cdnjs.cloudflare.com/ajax/libs/d3/3.4.2/d3.min.js", charset => 'utf-8';
+    %# javascript '//cdnjs.cloudflare.com/ajax/libs/jquery/2.1.0/jquery.min.js';
+    %= stylesheet '/cdn/bootstrap.min.css';
+    %= javascript "/cdn/d3.min.js", charset => 'utf-8';
+    %= javascript '/cdn/jquery.min.js';
   </head>
   <body>
   <%= content %>

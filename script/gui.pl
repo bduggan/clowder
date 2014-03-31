@@ -29,8 +29,11 @@ get '/seq' => sub {
   $c->res->headers->content_type('text/event-stream');
   my $i = 1;
   my $id = Mojo::IOLoop->singleton->recurring(
-    1 => sub {
-      my $s = '123459';
+    0.5 => sub {
+      my $s = '';
+      for (1..10) {
+          $s .= $_ if rand 10 > 5;
+      }
       $c->write("event:seq\ndata: $s\n\n");
     }
   );

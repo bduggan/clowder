@@ -29,38 +29,42 @@
   fill: steelblue;
 }
 
+.black {
+    color:black;
+    font-weight:bold;
+}
 </style>
 
 <div class='container-fluid'>
-<div id='stuff'></div>
+<button id='start_button' class='btn btn-success black' onclick='start();return false;'>start</button>
+<button id='stop_button' class='btn btn-danger black' onclick='stop();return false;' disabled>stop</button>
 <div id='process'>number here</div>
 </div>
-
-<svg class="chart" width="420" height="60">
-    <g transform="translate(0,0)">
-        <rect width="29.577464788732396" height="19"></rect>
-        <text x="26" y="10" dy=".35em">10</text>
-    </g>
-    <g transform="translate(0,20)">
-        <rect width="65.07042253521128" height="19"></rect>
-        <text x="62.07042253521128" y="10" dy=".35em">22</text>
-    </g>
-    <g transform="translate(0,40)">
-        <rect width="420" height="19"></rect>
-        <text x="417" y="10" dy=".35em">142</text>
-    </g>
-</svg>
-
 
 %= javascript begin
 
 var process = new EventSource('<%= url_for 'seq' %>');
 
-process.addEventListener('seq',function(event) {
-    console.log('event ' + event.data);
-    $('#process').html(event.data);
-    update(event.data);
-}, false);
+function stop() {
+    console.log('stop');
+    if (process) {
+        process.close();
+    }
+    process = null;
+    $('#start_button').removeAttr("disabled");
+    $('#stop_button').attr("disabled",1);
+}
+function start() {
+    console.log('start');
+    process = new EventSource('<%= url_for 'seq' %>');
+    process.addEventListener('seq',function(event) {
+        console.log('event ' + event.data);
+        $('#process').html(event.data);
+        update(event.data);
+    }, false);
+    $('#stop_button').removeAttr("disabled");
+    $('#start_button').attr("disabled",1);
+}
 
 var width = 1200, height = 500;
 

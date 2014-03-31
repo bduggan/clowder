@@ -38,7 +38,7 @@
 <div class='container-fluid'>
 <button id='start_button' class='btn btn-success black' onclick='start();return false;'>start</button>
 <button id='stop_button' class='btn btn-danger black' onclick='stop();return false;' disabled>stop</button>
-<div id='process'>number here</div>
+<div id='process'>press start</div>
 </div>
 
 %= javascript begin

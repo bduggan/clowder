@@ -44,5 +44,5 @@ Contents :
 * submit_job.pl  : client for submitting job requests
 * ingest_file.pl : client for announcing file ingests
 * subscriber.pl  : backend process for event-driven state changes
-
+* gui.pl         : monitor files and jobs
 
